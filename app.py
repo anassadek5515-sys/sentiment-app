@@ -1,77 +1,84 @@
 import streamlit as st
-from transformers import pipeline
 import pandas as pd
+from transformers import pipeline
 
-# إعدادات صفحة الويب
-st.set_page_config(page_title="منصة تحليل آراء العملاء", page_icon="📊", layout="wide")
+# Page Configuration
+st.set_page_config(
+    page_title="AI Customer Feedback Analyzer",
+    page_icon="📊",
+    layout="wide"
+)
 
-# تصميم القائمة الجانبية (Sidebar) للاحترافية
-st.sidebar.title("🛠️ لوحة التحكم")
-app_mode = st.sidebar.selectbox("اختر وضع الاستخدام:", ["تحليل نص فردي", "تحليل ملف عملاء (Excel/CSV)"])
+# Sidebar Design
+st.sidebar.title("Navigation")
+st.sidebar.markdown("### AI Customer Sentiment Tool")
+st.sidebar.write("Ready to deploy, clean code, zero maintenance.")
 
-# تحميل نموذج الذكاء الاصطناعي متعدد اللغات (يدعم العربية والإنجليزية ببراعة)
+# Load AI Model for Sentiment Analysis (Multilingual)
 @st.cache_resource
-def load_analyzer():
+def load_sentiment_model():
     return pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
-with st.spinner("جاري تهيئة نموذج الذكاء الاصطناعي..."):
-    analyzer = load_analyzer()
+with st.spinner("Loading AI model... Please wait."):
+    sentiment_analyzer = load_sentiment_model()
 
-# الوضع الأول: تحليل تعليق فردي
-if app_mode == "تحليل نص فردي":
-    st.title("🤖 أداة تحليل آراء العملاء الذكية")
-    st.write("أدخل رأي العميل (بالعربية أو الإنجليزية) لمعرفة انطباعه بدقة:")
+# Main Page UI
+st.title("📊 AI Customer Feedback Analyzer")
+st.markdown("Easily analyze customer sentiment instantly. Perfect for instant feedback analysis.")
 
-    user_input = st.text_area("رأي العميل:", "الخدمة ممتازة جداً والتوصيل سريع / This app is amazing!")
+# Tab 1: Single Text Analysis
+st.subheader("1️⃣ Single Review Analysis")
+user_input = st.text_area("Enter customer review (English or Arabic):", placeholder="Type or paste feedback here...")
 
-    if st.button("تحليل النص 🚀"):
-        if user_input.strip() != "":
-            with st.spinner("جاري التحليل..."):
-                result = analyzer(user_input)[0]
-                label = result['label'] # نجوم من 1 لـ 5
-                score = round(result['score'] * 100, 1)
-                
-                # تصنيف النتيجة وتلوينها
-                if "4" in label or "5" in label:
-                    st.success(f"النتيجة: إيجابي 👍 (التقييم: {label} - نسبة التأكد: {score}%)")
-                elif "1" in label or "2" in label:
-                    st.error(f"النتيجة: سلبي 👎 (التقييم: {label} - نسبة التأكد: {score}%)")
-                else:
-                    st.warning(f"النتيجة: محايد 😐 (التقييم: {label} - نسبة التأكد: {score}%)")
-        else:
-            st.warning("يرجى كتابة نص أولاً!")
-
-# الوضع الثاني: تحليل ملفات كاملة ورسوم بيانية (Dashboard)
-elif app_mode == "تحليل ملف عملاء (Excel/CSV)":
-    st.title("📈 لوحة إحصائيات آراء العملاء المتقدمة")
-    st.write("ارفع ملف يحتوي على تعليقات العملاء لتحليلها دفعة واحدة وعمل رسوم بيانية:")
-
-    uploaded_file = st.file_uploader("اختر ملف (CSV أو Excel)", type=["csv", "xlsx"])
-
-    if uploaded_file is not None:
-        if uploaded_file.name.endswith('.csv'):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
+if st.button("Analyze Sentiment"):
+    if user_input.strip() != "":
+        with st.spinner("Analyzing..."):
+            result = sentiment_analyzer(user_input[:512])[0]
+            label = result['label']
+            score = result['score']
             
-        st.write("📋 عينة من البيانات المرفوعة:", df.head())
+            # Map stars to sentiment
+            if "5" in label or "4" in label:
+                st.success(f"**Result:** Positive Sentiment ({label}) - Score: {score:.2f}")
+            elif "3" in label:
+                st.info(f"**Result:** Neutral Sentiment ({label}) - Score: {score:.2f}")
+            else:
+                st.error(f"**Result:** Negative Sentiment ({label}) - Score: {score:.2f}")
+    else:
+        st.warning("Please enter some text to analyze.")
+
+st.markdown("---")
+
+# Tab 2: Batch File Analysis (Excel / CSV)
+st.subheader("2️⃣ Batch File Analysis (Excel / CSV)")
+uploaded_file = st.file_uploader("Upload your file containing reviews:", type=["csv", "xlsx"])
+
+if uploaded_file is not None:
+    # Read the file
+    if uploaded_file.name.endswith('.csv'):
+        df = pd.read_csv(uploaded_file)
+    else:
+        df = pd.read_excel(uploaded_file)
         
-        text_column = st.selectbox("حدد عمود النص (التعليقات) في الملف:", df.columns)
-        
-        if st.button("بدء تحليل الملف الشامل 🚀"):
-            with st.spinner("جاري تحليل كافة التعليقات ورسم الإحصائيات..."):
-                results = []
-                for text in df[text_column].astype(str):
-                    res = analyzer(text[:512])[0]  # تحليل أول 512 حرف لكل تعليق
-                    results.append(res['label'])
-                
-                df['التقييم'] = results
-                st.success("تم الانتهاء من التحليل بنجاح!")
-                
-                # عرض رسم بياني للإحصائيات
-                st.subheader("📊 توزيع آراء العملاء (رسوم بيانية)")
-                sentiment_counts = df['التقييم'].value_counts()
-                st.bar_chart(sentiment_counts)
-                
-                st.dataframe(df)
+    st.write("Preview of uploaded data:", df.head())
+    
+    # Select column containing text
+    text_column = st.selectbox("Select the column containing reviews:", df.columns)
+    
+    if st.button("Run Batch Analysis"):
+        with st.spinner("Analyzing all comments and generating insights..."):
+            results = []
+            for text in df[text_column].astype(str):
+                res = sentiment_analyzer(text[:512])[0]
+                results.append(res['label'])
+            
+            df['Sentiment Result'] = results
+            st.success("Batch analysis completed successfully!")
+            
+            # Display charts and summary
+            st.subheader("Customer Sentiment Overview")
+            sentiment_counts = df['Sentiment Result'].value_counts()
+            st.bar_chart(sentiment_counts)
+            
+            st.write("Full data with results:", df)
 
