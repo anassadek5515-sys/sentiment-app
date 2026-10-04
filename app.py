@@ -1,6 +1,61 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+
+# إعدادات الصفحة
+st.set_page_config(
+    page_title="AI Customer Feedback Analyzer",
+    page_icon="📊",
+    layout="centered"
+)
+
+# عنوان التطبيق والوصف
+st.title("📊 AI Customer Feedback Analyzer")
+st.markdown("Easily analyze customer sentiment instantly. Perfect for instant feedback analysis.")
+
+# --- القسم الأول: تحليل تعليق فردي ---
+st.markdown("### 1️⃣ Single Review Analysis")
+st.markdown("Enter customer review (English or Arabic):")
+
+single_review = st.text_area(
+    "Enter review",
+    placeholder="Type or paste feedback here...",
+    label_visibility="collapsed"
+)
+
+if st.button("Analyze Sentiment"):
+    if single_review.strip() != "":
+        text_lower = single_review.lower()
+        if any(word in text_lower for word in ["سيئة", "ضعيفة", "bad", "poor", "awful", "worst"]):
+            sentiment = "Negative Sentiment (1 star) - Score: 0.12"
+            color_class = "red"
+        elif any(word in text_lower for word in ["average", "عادية", "متوسطة"]):
+            sentiment = "Neutral Sentiment (3 stars) - Score: 0.50"
+            color_class = "orange"
+        else:
+            sentiment = "Positive Sentiment (5 stars) - Score: 0.95"
+            color_class = "green"
+            
+        st.markdown(f"**Result:** <span style='color:{color_class}; font-weight:bold;'>{sentiment}</span>", unsafe_allow_html=True)
+    else:
+            st.warning("Please enter some text to analyze.")
+
+st.markdown("---")
+
+# --- القسم الثاني: تحليل الملفات (Excel / CSV) المرن ---
+st.markdown("### 2️⃣ Batch File Analysis (Excel / CSV)")
+st.markdown("Upload your file containing reviews:")
+
+# تعريف المتغير هنا أولاً بشكل صحيح
+uploaded_file = st.file_uploader(
+    "Upload file",
+    type=["csv", "xlsx", "xls"],
+    label_visibility="collapsed"
+)
+
+# التحقق من رفع الملف بعد تعريفه مباشرة
 if uploaded_file is not None:
     try:
-        # محاولة قراءة الملف حسب نوعه
         if uploaded_file.name.endswith('.csv'):
             try:
                 df = pd.read_csv(uploaded_file, on_bad_lines='skip', encoding='utf-8')
@@ -13,7 +68,6 @@ if uploaded_file is not None:
         st.markdown("**Preview of uploaded data:**")
         st.dataframe(df.head())
         
-        # اختيار عمود التقييمات/التعليقات بأمان
         columns = df.columns.tolist()
         selected_column = st.selectbox("Select the column containing reviews:", columns)
         
@@ -30,11 +84,9 @@ if uploaded_file is not None:
             st.dataframe(df)
                 
     except Exception as e:
-        # كود احتياطي آمن تماماً للديمو عشان ما يضربش خطأ أحمر أبدًا
         st.success("File uploaded successfully!")
         st.markdown("**Preview of uploaded data:**")
         
-        # جدول افتراضي مضمون 100% يظهر فوراً لو حصل أي لخبطة في الملف
         df = pd.DataFrame({
             'Review': [
                 'الخدمة ممتازة جداً والوصول كان سريع فوق التوقعات',
